@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Feed Study</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- All visible text is filled from STRINGS in app.js (data-s="key"). -->
+
+  <!-- 1. Researcher setup -->
+  <main id="screen-setup" class="screen" hidden>
+    <h1 data-s="setupTitle"></h1>
+    <p id="placeholderWarning" class="warn" hidden></p>
+    <p id="setsWarning" class="warn" hidden></p>
+
+    <section id="resumePanel" class="panel" hidden>
+      <h2 data-s="resumeTitle"></h2>
+      <p id="resumeInfo"></p>
+      <button type="button" id="btnResume" class="btn primary" data-s="resumeBtn"></button>
+    </section>
+
+    <section class="panel">
+      <label for="pidInput" class="lbl" data-s="pidLabel"></label>
+      <input id="pidInput" type="number" inputmode="numeric" min="1" step="1" autocomplete="off">
+      <div id="planPreview" class="plan" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <h2 data-s="vibTitle"></h2>
+      <label class="switch-row">
+        <input type="checkbox" id="vibToggle">
+        <span data-s="vibToggle"></span>
+      </label>
+      <p id="vibSupport" class="muted"></p>
+      <p id="vibOffWarning" class="warn" hidden></p>
+      <div class="row">
+        <button type="button" id="btnTest1" class="btn" data-s="test1"></button>
+        <button type="button" id="btnTest2" class="btn" data-s="test2"></button>
+      </div>
+      <p id="vibTestResult" class="muted" aria-live="polite"></p>
+    </section>
+
+    <section class="panel">
+      <button type="button" id="btnStart" class="btn primary big" data-s="startBtn" disabled></button>
+    </section>
+
+    <section class="panel">
+      <h2 data-s="dataTitle"></h2>
+      <p id="dataInfo" class="muted"></p>
+      <div class="row wrap">
+        <button type="button" id="btnExportRaw" class="btn" data-s="exportRaw"></button>
+        <button type="button" id="btnExportSummary" class="btn" data-s="exportSummary"></button>
+        <button type="button" id="btnExportAll" class="btn" data-s="exportAll"></button>
+      </div>
+      <button type="button" id="btnClear" class="btn danger" data-s="clearData"></button>
+    </section>
+  </main>
+
+  <!-- 2. Block intro -->
+  <main id="screen-intro" class="screen center" hidden>
+    <p class="eyebrow" id="introPart"></p>
+    <h1 data-s="introTitle"></h1>
+    <p id="introText" class="lead"></p>
+    <p class="muted" data-s="introCommon"></p>
+    <button type="button" id="btnBeginBlock" class="btn primary big" data-s="introBegin"></button>
+  </main>
+
+  <!-- 3. Feed -->
+  <main id="screen-feed" class="screen feed" hidden>
+    <header class="feed-head">
+      <span data-s="feedTitle"></span>
+    </header>
+    <ol id="feedList" class="feed-list"></ol>
+    <div class="feed-foot">
+      <button type="button" id="btnFinishFeed" class="btn big" data-s="finishFeed"></button>
+    </div>
+  </main>
+
+  <!-- 4. Block end -->
+  <main id="screen-blockend" class="screen center" hidden>
+    <h1 id="blockEndTitle"></h1>
+    <p class="lead" data-s="blockEndText"></p>
+    <button type="button" id="btnResearcherContinue" class="btn subtle" data-s="researcherContinue"></button>
+  </main>
+
+  <!-- 5. Debrief -->
+  <main id="screen-debrief" class="screen" hidden>
+    <h1 data-s="debriefTitle"></h1>
+    <p class="lead" data-s="debriefIntro"></p>
+    <ol id="debriefList" class="debrief-list"></ol>
+    <p class="muted" data-s="debriefOutro"></p>
+    <button type="button" id="btnDebriefDone" class="btn primary big" data-s="debriefDone"></button>
+  </main>
+
+  <!-- 6. End -->
+  <main id="screen-end" class="screen center" hidden>
+    <h1 data-s="endTitle"></h1>
+    <p class="lead" data-s="endText"></p>
+    <div class="row wrap center">
+      <button type="button" id="btnEndExportRaw" class="btn" data-s="exportRaw"></button>
+      <button type="button" id="btnEndExportSummary" class="btn" data-s="exportSummary"></button>
+    </div>
+    <button type="button" id="btnBackToSetup" class="btn subtle" data-s="backToSetup"></button>
+  </main>
+
+  <!-- Overlay: B/C — source question (identical for B and C; C also vibrates) -->
+  <div id="ov-prompt" class="overlay sheet" hidden>
+    <div class="pause" role="dialog" aria-modal="true" aria-labelledby="promptQuestion" aria-describedby="promptTitle promptSub">
+      <p id="promptTitle" class="pause-title" data-s="promptTitle"></p>
+      <p id="promptSub" class="muted" data-s="promptSub"></p>
+
+      <article id="promptSummary" class="post mini"></article>
+
+      <h2 id="promptQuestion" class="question" data-s="promptQuestion"></h2>
+      <button type="button" id="btnInspect" class="btn big" data-s="inspectSource"></button>
+
+      <div class="row equal prompt-actions">
+        <button type="button" id="btnPromptCancel" class="btn big" data-s="cancel"></button>
+        <button type="button" id="btnPromptShare" class="btn big" data-s="share"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay: source trace -->
+  <div id="ov-source" class="overlay sheet top" hidden>
+    <div class="source" role="dialog" aria-modal="true" aria-labelledby="sourceTitle">
+      <h2 id="sourceTitle" data-s="sourceTitle"></h2>
+      <article id="sourcePost" class="post mini"></article>
+      <dl class="source-dl">
+        <dt data-s="srcPublisher"></dt><dd id="srcPublisher"></dd>
+        <dt data-s="srcPublished"></dt><dd id="srcPublished"></dd>
+        <dt data-s="srcEvidence"></dt><dd id="srcEvidence"></dd>
+        <dt data-s="srcNote"></dt><dd id="srcNote"></dd>
+      </dl>
+      <button type="button" id="btnSourceBack" class="btn big" data-s="back"></button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="posts.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
