@@ -631,14 +631,29 @@
     activeEntry = entry;
     log('share_tap', { post_id: id, detail: entry });
     if (cond() === 'A') shareComplete('direct');
+    else if (sourceViewed(id)) {
+      // B/C: the participant already looked at this post's source in this part,
+      // so the "Did you check the source?" question is skipped and the post is shared at once.
+      log('prompt_skipped', { post_id: id, detail: 'source_viewed' });
+      shareComplete('source_viewed');
+    }
     else openPrompt(id);
+  }
+
+  // True if this post's source page was opened in the current part (from the feed or the prompt).
+  function sourceViewed(id) {
+    const blockNo = curBlock().block;
+    return session.events.some(function (e) {
+      return e.event === 'source_open' && e.post_id === id && e.block === blockNo;
+    });
   }
 
   function shareComplete(via) {
     const id = activePostId;
     if (!id) return;
     log('share_complete', { post_id: id, detail: via + ':' + activeEntry });
-    haptic('done', id);
+    // No share vibration when the question was skipped (source already viewed): C then behaves like B.
+    if (via !== 'source_viewed') haptic('done', id);
     const bs = blockState();
     if (bs.shared.indexOf(id) < 0) bs.shared.push(id);
     saveSession();
@@ -737,7 +752,7 @@
   }
 
   const SUM_COLS = ['participant', 'block', 'condition', 'post_set', 'post_id', 'veracity', 'source_opens', 'source_opens_from_prompt',
-    'source_time_ms', 'shared', 'shared_via', 'share_attempts', 'repost_attempts', 'cancels', 'decision_time_ms', 'time_from_first_view_ms'];
+    'source_time_ms', 'shared', 'shared_via', 'share_attempts', 'repost_attempts', 'prompt_skipped', 'cancels', 'decision_time_ms', 'time_from_first_view_ms'];
 
   function summaryCSV(s) {
     const rows = [];
@@ -762,7 +777,7 @@
           source_time_ms: sourceTime,
           shared: count('share_complete') > 0 ? 1 : 0,
           shared_via: sharedVia,
-          share_attempts: count('share_tap'), repost_attempts: count('share_tap', 'repost'), cancels: count('cancel'),
+          share_attempts: count('share_tap'), repost_attempts: count('share_tap', 'repost'), prompt_skipped: count('prompt_skipped') > 0 ? 1 : 0, cancels: count('cancel'),
           decision_time_ms: decision,
           time_from_first_view_ms: firstView != null && firstTap != null ? firstTap - firstView : ''
         });

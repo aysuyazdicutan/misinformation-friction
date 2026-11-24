@@ -31,7 +31,7 @@ Open `http://localhost:8000/`. Vibration and wake lock only work on a real Andro
 | B — source question | Question screen: "Did you check the source?" + Inspect source, Cancel / Share | none |
 | C — source question + vibration | Same question screen as B | 1 pulse (120 ms) when the question opens, 2 pulses ([80,80,80]) when shared |
 
-B and C use exactly the same screen and text; vibration is the only difference. `haptic()` in app.js returns immediately unless the condition is C, so A and B can never vibrate. If vibration is switched off or unsupported, C behaves like B (the setup screen warns, and each skipped vibration is logged).
+**If the participant already opened the post's source in this part (from the feed or from the question screen), B and C skip the question and share at once** (no vibration at all in that case, also not in C). B and C use exactly the same screen and text; vibration is the only difference. `haptic()` in app.js returns immediately unless the condition is C, so A and B can never vibrate. If vibration is switched off or unsupported, C behaves like B (the setup screen warns, and each skipped vibration is logged).
 
 ## Study flow
 1. **Researcher setup** — participant number → plan preview, vibration on/off + support status + test pulses, Start, exports, Clear data. An unfinished session (e.g. after a reload) can be resumed.
@@ -68,19 +68,21 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 | source_close | time open | `feed` \| `prompt` |
 | share_tap | | `share` \| `repost` — which feed button was tapped |
 | prompt_shown | | (B and C) |
+| prompt_skipped | | `source_viewed` — B/C: the source was already opened in this part, so the question was skipped and the post shared at once |
 | vibrate | | `kind|pattern|return value` or `skipped:disabled` / `skipped:unsupported` (C only) |
-| share_complete | | `direct:<entry>` (A) \| `prompt:<entry>` (B/C) |
+| share_complete | | `direct:<entry>` (A) \| `prompt:<entry>` \| `source_viewed:<entry>` (B/C) |
 | cancel | | `prompt:<entry>` (B/C only) |
 | block_end | block duration | shared post ids |
 | debrief_shown | | |
 | session_end | session duration | |
 
 ### Summary CSV (one row per post per block)
-`participant, block, condition, post_set, post_id, veracity, source_opens, source_opens_from_prompt, source_time_ms, shared, shared_via, share_attempts, repost_attempts, cancels, decision_time_ms, time_from_first_view_ms`
+`participant, block, condition, post_set, post_id, veracity, source_opens, source_opens_from_prompt, source_time_ms, shared, shared_via, share_attempts, repost_attempts, prompt_skipped, cancels, decision_time_ms, time_from_first_view_ms`
 
 - `source_opens_from_prompt` — source opened from the question screen (B/C).
 - `shared_via` — `share` or `repost`: the button that started the share that went through.
 - `repost_attempts` — how many of the `share_attempts` started from the repost icon.
+- `prompt_skipped` — 1 if the question was skipped because the source had already been viewed.
 - `decision_time_ms` — last `share_tap` → its `share_complete` or `cancel`.
 - `time_from_first_view_ms` — first `post_visible` → first `share_tap` (empty if never tapped).
 
