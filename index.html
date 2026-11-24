@@ -36,9 +36,22 @@
       </label>
       <p id="vibSupport" class="muted"></p>
       <p id="vibOffWarning" class="warn" hidden></p>
-      <div class="row">
-        <button type="button" id="btnTest1" class="btn" data-s="test1"></button>
-        <button type="button" id="btnTest2" class="btn" data-s="test2"></button>
+      <div class="vib-grid">
+        <label for="hzBInput" data-s="hzBLabel"></label>
+        <input id="hzBInput" type="number" inputmode="decimal" min="1" max="20" step="0.5">
+        <label for="hzCInput" data-s="hzCLabel"></label>
+        <input id="hzCInput" type="number" inputmode="decimal" min="1" max="20" step="0.5">
+        <label for="promptPulsesInput" data-s="promptPulsesLabel"></label>
+        <input id="promptPulsesInput" type="number" inputmode="numeric" min="1" max="20" step="1">
+        <label for="sharePulsesInput" data-s="sharePulsesLabel"></label>
+        <input id="sharePulsesInput" type="number" inputmode="numeric" min="1" max="20" step="1">
+      </div>
+      <p id="vibPreview" class="muted"></p>
+      <div class="row wrap">
+        <button type="button" id="btnTestBPrompt" class="btn" data-s="testBPrompt"></button>
+        <button type="button" id="btnTestBShare" class="btn" data-s="testBShare"></button>
+        <button type="button" id="btnTestCPrompt" class="btn" data-s="testCPrompt"></button>
+        <button type="button" id="btnTestCShare" class="btn" data-s="testCShare"></button>
       </div>
       <p id="vibTestResult" class="muted" aria-live="polite"></p>
     </section>
@@ -106,7 +119,7 @@
     <button type="button" id="btnBackToSetup" class="btn subtle" data-s="backToSetup"></button>
   </main>
 
-  <!-- Overlay: B/C — source question (identical for B and C; C also vibrates) -->
+  <!-- Overlay: B/C — source question (identical for B and C; only the vibration Hz differs) -->
   <div id="ov-prompt" class="overlay sheet" hidden>
     <div class="pause" role="dialog" aria-modal="true" aria-labelledby="promptQuestion" aria-describedby="promptTitle promptSub">
       <p id="promptTitle" class="pause-title" data-s="promptTitle"></p>

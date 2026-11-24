@@ -3,10 +3,11 @@
  * Depends on: posts.js (window.POST_SETS).
  *
  * Conditions:
- *   A — standard:          Share -> "Share this post?" (Share / Cancel) -> shared. No vibration.
- *   B — source question:   Share -> prompt "Did you check the source?" -> Share / Cancel. No vibration.
- *   C — question + haptic: same prompt as B, plus vibration (1 pulse on prompt, 2 pulses on share).
- * B and C are identical except for vibration.
+ *   A — standard:          Share -> shared at once. No vibration.
+ *   B — question + 3.5 Hz: Share -> prompt "Did you check the source?" -> Share / Cancel, pulsed vibration at hzB.
+ *   C — question + 5 Hz:   same prompt as B, pulsed vibration at hzC.
+ * B and C are identical except for the vibration pulse rate (Hz, set on the setup screen).
+ * If the source was already viewed in the part, B/C skip the prompt and do not vibrate.
  */
 (function () {
   'use strict';
@@ -26,14 +27,21 @@
     planEmpty: 'Enter a participant number to see the plan.',
     planHeader: 'Order {order} · rotation {rot}',
     planBlock: 'Part', planCond: 'Condition', planSet: 'Post set',
-    condName: { A: 'A — standard', B: 'B — source question', C: 'C — source question + vibration' },
-    vibTitle: 'Vibration (condition C)',
+    condName: { A: 'A — standard (no vibration)', B: 'B — source question + {hz} Hz', C: 'C — source question + {hz} Hz' },
+    vibTitle: 'Vibration (conditions B and C)',
     vibToggle: 'Vibration on',
     vibSupported: 'This browser supports vibration.',
-    vibUnsupported: 'This browser does NOT support vibration — condition C will not vibrate here. Use Android Chrome.',
-    vibOffWarning: 'Vibration is off: condition C will behave like B.',
-    test1: 'Test 1 pulse',
-    test2: 'Test 2 pulses',
+    vibUnsupported: 'This browser does NOT support vibration — B and C will not vibrate here. Use Android Chrome.',
+    vibOffWarning: 'Vibration is off: B and C will not vibrate.',
+    hzBLabel: 'B pulse rate (Hz)',
+    hzCLabel: 'C pulse rate (Hz)',
+    promptPulsesLabel: 'Pulses when the question opens',
+    sharePulsesLabel: 'Pulses when shared',
+    vibPreview: 'B: {bOn} ms on / {bOn} ms off · C: {cOn} ms on / {cOn} ms off',
+    testBPrompt: 'Test B question',
+    testBShare: 'Test B share',
+    testCPrompt: 'Test C question',
+    testCShare: 'Test C share',
     vibTestResult: 'navigator.vibrate returned: {r}',
     startBtn: 'Start session',
     dataTitle: 'Data',
@@ -245,7 +253,8 @@
   // =====================================================================
   // Settings & session state (persisted to localStorage)
   // =====================================================================
-  const settings = Object.assign({ vib: true }, JSON.parse(lsGet(LS_SETTINGS) || '{}'));
+  const VIB_DEFAULTS = { hzB: 3.5, hzC: 5, promptPulses: 1, sharePulses: 2 };
+  const settings = Object.assign({ vib: true }, VIB_DEFAULTS, JSON.parse(lsGet(LS_SETTINGS) || '{}'));
   function saveSettings() { lsSet(LS_SETTINGS, JSON.stringify(settings)); }
 
   let session = null;
@@ -287,7 +296,7 @@
   // Event log
   // =====================================================================
   const RAW_COLS = ['participant', 'session_id', 'seq', 'timestamp_iso', 't_ms', 'block', 'condition', 'post_set',
-    'post_id', 'post_index', 'veracity', 'event', 'value_ms', 'detail', 'vib_enabled', 'vib_supported'];
+    'post_id', 'post_index', 'veracity', 'event', 'value_ms', 'detail', 'vib_enabled', 'vib_supported', 'vib_hz'];
 
   function log(event, o) {
     if (!session) return;
@@ -316,7 +325,8 @@
       value_ms: o.value_ms == null ? '' : Math.round(o.value_ms),
       detail: o.detail == null ? '' : String(o.detail),
       vib_enabled: settings.vib ? 1 : 0,
-      vib_supported: VIB_SUPPORTED ? 1 : 0
+      vib_supported: VIB_SUPPORTED ? 1 : 0,
+      vib_hz: b ? condHz(b.condition) : ''
     };
     session.events.push(e);
     saveSession();
@@ -325,19 +335,40 @@
 
   // =====================================================================
   // Vibration — the ONLY place navigator.vibrate is called during a session.
-  // Only condition C vibrates; A and B never do.
+  // A never vibrates. B and C vibrate with the same pulse counts; only the pulse rate (Hz) differs.
+  // "Hz" = how many times per second the motor switches on (50% duty cycle):
+  //   5 Hz -> 100 ms on / 100 ms off ; 3.5 Hz -> 143 ms on / 143 ms off.
   // =====================================================================
-  const VIB_PATTERNS = { prompt: 120, done: [80, 80, 80] };
+  function clampNum(v, min, max, step, fallback) {
+    let n = parseFloat(v);
+    if (!Number.isFinite(n)) n = fallback;
+    n = Math.round(n / step) * step;
+    return Math.min(max, Math.max(min, n));
+  }
+  function halfPeriodMs(hz) { return Math.round(1000 / (2 * hz)); }
+  function buildPattern(hz, pulses) {
+    const on = halfPeriodMs(hz);
+    if (pulses <= 1) return [on];
+    const p = [];
+    for (let i = 0; i < pulses; i++) { if (i) p.push(on); p.push(on); }
+    return p;
+  }
+  // Vibration settings in force: frozen into the session at start, else the current setup values.
+  function vibCfg() { return (session && session.vib) || settings; }
+  function condHz(c) { return c === 'B' ? vibCfg().hzB : c === 'C' ? vibCfg().hzC : ''; }
 
   function haptic(kind, postId) {
-    if (cond() !== 'C') return; // guarantees: no vibration in A or B (or outside a block)
-    const pattern = VIB_PATTERNS[kind];
+    const c = cond();
+    if (c !== 'B' && c !== 'C') return; // guarantees: no vibration in A (or outside a block)
+    const hz = condHz(c);
+    const pattern = buildPattern(hz, kind === 'prompt' ? vibCfg().promptPulses : vibCfg().sharePulses);
     const pat = JSON.stringify(pattern);
-    if (!settings.vib) { log('vibrate', { post_id: postId, detail: kind + '|' + pat + '|skipped:disabled' }); return; }
-    if (!VIB_SUPPORTED) { log('vibrate', { post_id: postId, detail: kind + '|' + pat + '|skipped:unsupported' }); return; }
+    const tag = '|' + hz + 'Hz';
+    if (!settings.vib) { log('vibrate', { post_id: postId, detail: kind + '|' + pat + '|skipped:disabled' + tag }); return; }
+    if (!VIB_SUPPORTED) { log('vibrate', { post_id: postId, detail: kind + '|' + pat + '|skipped:unsupported' + tag }); return; }
     let r;
     try { r = navigator.vibrate(pattern); } catch (e) { r = 'error:' + e.message; }
-    log('vibrate', { post_id: postId, detail: kind + '|' + pat + '|' + r });
+    log('vibrate', { post_id: postId, detail: kind + '|' + pat + '|' + r + tag });
   }
 
   // =====================================================================
@@ -385,7 +416,7 @@
     const tbl = el('table');
     tbl.appendChild(el('tr', null, [el('th', { text: t('planBlock') }), el('th', { text: t('planCond') }), el('th', { text: t('planSet') })]));
     plan.blocks.forEach(function (b) {
-      tbl.appendChild(el('tr', null, [el('td', { text: String(b.block) }), el('td', { text: t('condName.' + b.condition) }), el('td', { text: b.set })]));
+      tbl.appendChild(el('tr', null, [el('td', { text: String(b.block) }), el('td', { text: t('condName.' + b.condition, { hz: condHz(b.condition) }) }), el('td', { text: b.set })]));
     });
     box.appendChild(tbl);
   }
@@ -395,6 +426,33 @@
     $('vibSupport').className = VIB_SUPPORTED ? 'muted' : 'warn';
     $('vibOffWarning').hidden = settings.vib || !VIB_SUPPORTED;
     $('vibOffWarning').textContent = t('vibOffWarning');
+    $('vibPreview').textContent = t('vibPreview', { bOn: halfPeriodMs(settings.hzB), cOn: halfPeriodMs(settings.hzC) });
+  }
+
+  // Read the four vibration inputs, clamp them, save, and show the clamped values back.
+  const VIB_INPUTS = [
+    { id: 'hzBInput', key: 'hzB', min: 1, max: 20, step: 0.5 },
+    { id: 'hzCInput', key: 'hzC', min: 1, max: 20, step: 0.5 },
+    { id: 'promptPulsesInput', key: 'promptPulses', min: 1, max: 20, step: 1 },
+    { id: 'sharePulsesInput', key: 'sharePulses', min: 1, max: 20, step: 1 }
+  ];
+  function readVibInputs(writeBack) {
+    VIB_INPUTS.forEach(function (f) {
+      const raw = $(f.id).value;
+      if (!writeBack && raw === '') return; // still typing
+      settings[f.key] = clampNum(raw, f.min, f.max, f.step, VIB_DEFAULTS[f.key]);
+      if (writeBack) $(f.id).value = settings[f.key];
+    });
+    saveSettings();
+    renderVibStatus();
+    renderPlanPreview();
+  }
+  function testVibration(c, kind) {
+    readVibInputs(true);
+    const hz = c === 'B' ? settings.hzB : settings.hzC;
+    const pattern = buildPattern(hz, kind === 'prompt' ? settings.promptPulses : settings.sharePulses);
+    const r = navigator.vibrate(pattern);
+    $('vibTestResult').textContent = t('vibTestResult', { r: r }) + ' · ' + hz + ' Hz · ' + JSON.stringify(pattern);
   }
 
   function renderSetupData() {
@@ -412,7 +470,8 @@
 
   function renderSetup() {
     $('vibToggle').checked = !!settings.vib;
-    $('btnTest1').disabled = $('btnTest2').disabled = !VIB_SUPPORTED;
+    VIB_INPUTS.forEach(function (f) { $(f.id).value = settings[f.key]; });
+    ['btnTestBPrompt', 'btnTestBShare', 'btnTestCPrompt', 'btnTestCShare'].forEach(function (id) { $(id).disabled = !VIB_SUPPORTED; });
     renderVibStatus();
     if (window.POSTS_ARE_PLACEHOLDER) { $('placeholderWarning').hidden = false; $('placeholderWarning').textContent = t('placeholderWarning'); }
     const probs = validateSets();
@@ -426,18 +485,20 @@
   // Session lifecycle
   // =====================================================================
   function startSession(pid) {
+    readVibInputs(true);
     const plan = computePlan(pid);
     const now = Date.now();
     session = {
       id: 'P' + pid + '-' + now.toString(36),
       pid: pid, plan: plan, startEpoch: now,
+      vib: { hzB: settings.hzB, hzC: settings.hzC, promptPulses: settings.promptPulses, sharePulses: settings.sharePulses },
       blockIdx: 0, phase: 'intro', finishedAt: null, seq: 0, events: [],
       blocks: plan.blocks.map(function (b) {
         const ids = window.POST_SETS[b.set].map(function (p) { return p.id; });
         return { order: seededShuffle(ids, pid * 1000 + b.block), shared: [], visible: [] };
       })
     };
-    log('session_start', { detail: 'order=' + plan.order + ';rot=' + plan.rot + ';plan=' + plan.blocks.map(function (b) { return b.condition + ':' + b.set; }).join(',') + ';placeholder=' + (window.POSTS_ARE_PLACEHOLDER ? 1 : 0) + ';ua=' + navigator.userAgent });
+    log('session_start', { detail: 'order=' + plan.order + ';rot=' + plan.rot + ';plan=' + plan.blocks.map(function (b) { return b.condition + ':' + b.set; }).join(',') + ';placeholder=' + (window.POSTS_ARE_PLACEHOLDER ? 1 : 0) + ';hzB=' + session.vib.hzB + ';hzC=' + session.vib.hzC + ';prompt_pulses=' + session.vib.promptPulses + ';share_pulses=' + session.vib.sharePulses + ';ua=' + navigator.userAgent });
     requestWakeLock();
     goPhase();
   }
@@ -820,8 +881,14 @@
     // Setup
     $('pidInput').addEventListener('input', renderPlanPreview);
     $('vibToggle').addEventListener('change', function () { settings.vib = $('vibToggle').checked; saveSettings(); renderVibStatus(); });
-    $('btnTest1').addEventListener('click', function () { const r = navigator.vibrate(VIB_PATTERNS.prompt); $('vibTestResult').textContent = t('vibTestResult', { r: r }); });
-    $('btnTest2').addEventListener('click', function () { const r = navigator.vibrate(VIB_PATTERNS.done); $('vibTestResult').textContent = t('vibTestResult', { r: r }); });
+    VIB_INPUTS.forEach(function (f) {
+      $(f.id).addEventListener('input', function () { readVibInputs(false); });
+      $(f.id).addEventListener('change', function () { readVibInputs(true); });
+    });
+    $('btnTestBPrompt').addEventListener('click', function () { testVibration('B', 'prompt'); });
+    $('btnTestBShare').addEventListener('click', function () { testVibration('B', 'done'); });
+    $('btnTestCPrompt').addEventListener('click', function () { testVibration('C', 'prompt'); });
+    $('btnTestCShare').addEventListener('click', function () { testVibration('C', 'done'); });
     $('btnStart').addEventListener('click', function () { const pid = parsePid(); if (pid) startSession(pid); });
     $('btnResume').addEventListener('click', resumeSession);
     $('btnExportRaw').addEventListener('click', function () { exportSession('raw'); });

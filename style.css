@@ -139,3 +139,7 @@ input[type=number] { width: 100%; font-size: 1.3rem; padding: 10px 12px; border:
 .debrief-list .claim { font-style: italic; }
 
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #16181c; color: #fff; padding: 10px 18px; border-radius: 999px; z-index: 30; font-weight: 600; }
+
+.vib-grid { display: grid; grid-template-columns: 1fr 96px; gap: 8px 12px; align-items: center; margin: 10px 0 6px; }
+.vib-grid label { font-weight: 600; font-size: .95rem; }
+.vib-grid input { width: 100%; font-size: 1.1rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
