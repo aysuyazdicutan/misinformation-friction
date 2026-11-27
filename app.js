@@ -74,6 +74,9 @@
     reposted: 'Reposted',
     shared: 'Shared ✓',
     sharedToast: 'Shared',
+    unsharedToast: 'Share undone',
+    sharedAria: 'Shared. Tap again to undo',
+    repostedAria: 'Reposted. Tap again to undo',
     finishFeed: 'Finish this feed',
     finishFeedAgain: 'Tap again to finish',
     postAria: 'Post by {author}',
@@ -731,16 +734,17 @@
     const btn = document.querySelector('[data-share="' + id + '"]');
     if (!btn) return;
     const isShared = blockState().shared.indexOf(id) >= 0;
-    btn.disabled = isShared;
     btn.textContent = '';
+    btn.setAttribute('aria-pressed', isShared ? 'true' : 'false');
+    if (isShared) btn.setAttribute('aria-label', t('sharedAria')); else btn.removeAttribute('aria-label');
     btn.appendChild(icon(isShared ? 'check' : 'share'));
     btn.appendChild(el('span', { text: isShared ? t('shared').replace(' ✓', '') : t('share') }));
     btn.classList.toggle('shared', isShared);
     const rp = document.querySelector('[data-repost="' + id + '"]');
     if (rp) {
-      rp.disabled = isShared;
       rp.classList.toggle('shared', isShared);
-      rp.setAttribute('aria-label', isShared ? t('reposted') : t('repost'));
+      rp.setAttribute('aria-pressed', isShared ? 'true' : 'false');
+      rp.setAttribute('aria-label', isShared ? t('repostedAria') : t('repost'));
     }
   }
 
@@ -765,7 +769,7 @@
 
   // Both the Share button and the Repost icon lead to the same flow (A: shared at once, B/C: prompt).
   function shareTap(id, entry) {
-    if (blockState().shared.indexOf(id) >= 0) return;
+    if (blockState().shared.indexOf(id) >= 0) { unshare(id, entry); return; }
     if (promptOpen()) {
       if (activePostId === id) return;          // notice for this post is already showing
       shareCancel('prompt', 'replaced');        // Share on another post while the notice was open
@@ -804,6 +808,17 @@
     activePostId = null;
     updateShareButton(id);
     toast(t('sharedToast'));
+  }
+
+  // Tapping Share / Repost again on a shared post undoes the share (no notice, no vibration).
+  function unshare(id, entry) {
+    if (promptOpen()) shareCancel('prompt', 'replaced');
+    const bs = blockState();
+    bs.shared = bs.shared.filter(function (x) { return x !== id; });
+    log('unshare', { post_id: id, detail: entry });
+    saveSession();
+    updateShareButton(id);
+    toast(t('unsharedToast'));
   }
 
   function shareCancel(via, why) {
@@ -892,7 +907,7 @@
   }
 
   const SUM_COLS = ['participant', 'block', 'condition', 'post_set', 'post_id', 'story', 'veracity', 'source_opens', 'source_opens_from_prompt',
-    'source_time_ms', 'shared', 'shared_via', 'share_attempts', 'repost_attempts', 'prompt_skipped', 'cancels', 'decision_time_ms', 'time_from_first_view_ms'];
+    'source_time_ms', 'shared', 'unshares', 'shared_via', 'share_attempts', 'repost_attempts', 'prompt_skipped', 'cancels', 'decision_time_ms', 'time_from_first_view_ms'];
 
   function summaryCSV(s) {
     const rows = [];
@@ -903,19 +918,21 @@
         const count = function (name, detail) {
           return pe.filter(function (e) { return e.event === name && (detail == null || e.detail === detail || e.detail.indexOf(detail + '|') === 0); }).length;
         };
-        let sourceTime = 0, lastTap = null, lastEntry = '', sharedVia = '', decision = '', firstView = null, firstTap = null;
+        let finalShared = false, sourceTime = 0, lastTap = null, lastEntry = '', sharedVia = '', decision = '', firstView = null, firstTap = null;
         pe.forEach(function (e) {
           if (e.event === 'source_close' && e.value_ms !== '') sourceTime += Number(e.value_ms);
           if (e.event === 'post_visible' && firstView == null) firstView = e.t_ms;
           if (e.event === 'share_tap') { lastTap = e.t_ms; lastEntry = e.detail; if (firstTap == null) firstTap = e.t_ms; }
-          if (e.event === 'share_complete') sharedVia = lastEntry;
+          if (e.event === 'share_complete') { sharedVia = lastEntry; finalShared = true; }
+          if (e.event === 'unshare') { finalShared = false; sharedVia = ''; }
           if ((e.event === 'share_complete' || e.event === 'cancel') && lastTap != null) { decision = e.t_ms - lastTap; lastTap = null; }
         });
         rows.push({
           participant: s.pid, block: b.block, condition: b.condition, post_set: b.set, post_id: p.id, story: p.story, veracity: p.veracity,
           source_opens: count('source_open'), source_opens_from_prompt: count('source_open', 'prompt'),
           source_time_ms: sourceTime,
-          shared: count('share_complete') > 0 ? 1 : 0,
+          shared: finalShared ? 1 : 0,
+          unshares: count('unshare'),
           shared_via: sharedVia,
           share_attempts: count('share_tap'), repost_attempts: count('share_tap', 'repost'), prompt_skipped: count('prompt_skipped') > 0 ? 1 : 0, cancels: count('cancel'),
           decision_time_ms: decision,

@@ -102,14 +102,14 @@ input[type=number] { width: 100%; font-size: 1.3rem; padding: 10px 12px; border:
 }
 .repost-btn:not(:disabled):hover, .repost-btn:not(:disabled):active { color: var(--ok); background: rgba(21, 127, 59, .08); }
 .repost-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.repost-btn.shared { color: var(--ok); cursor: default; }
+.repost-btn.shared { color: var(--ok); }
 .share-btn {
   appearance: none; background: none; border: 0; color: var(--muted); font: inherit; font-size: .92rem; font-weight: 600;
   display: inline-flex; align-items: center; gap: 6px; padding: 10px 6px 10px 10px; min-height: 44px; cursor: pointer; border-radius: 999px;
 }
 .share-btn:not(:disabled):hover, .share-btn:not(:disabled):active { color: var(--accent); background: rgba(47, 91, 211, .08); }
 .share-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.share-btn.shared { color: var(--ok); cursor: default; }
+.share-btn.shared { color: var(--ok); }
 
 .post.mini { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin: 12px 0; }
 .mini-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; min-width: 0; }

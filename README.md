@@ -52,7 +52,7 @@ Each **story** is a real news article (`url`) with two headlines: one accurate (
 1. **Researcher setup** — participant number → plan preview, vibration on/off + support status + B/C pulse rate and pulse counts + test buttons, Start, exports, Clear data. An unfinished session (e.g. after a reload) can be resumed.
 2. **Consent form** (Google Form, embedded) — every participant, right after Start. The screen shows the participant number. *I submitted the form — continue* needs two taps.
 3. **Part intro** — neutral instruction (B and C have the same text).
-4. **Feed** — 12 posts (seeded shuffle; the two versions of a story are never next to each other) in a timeline layout. *View source* opens the real article **in a new tab** (Android back button returns to the app); the time away is logged. The **repost icon** and **Share** both open the same flow (A: shared at once, B/C: notice). Reply / like / views icons are decorative. Shared posts lock; cancelled posts can be shared again. *Finish this feed* needs two taps.
+4. **Feed** — 12 posts (seeded shuffle; the two versions of a story are never next to each other) in a timeline layout. *View source* opens the real article **in a new tab** (Android back button returns to the app); the time away is logged. The **repost icon** and **Share** both open the same flow (A: shared at once, B/C: notice). Reply / like / views icons are decorative. Tapping Share or Repost again on a shared post **undoes the share** (no notice, no vibration; toast "Share undone"); after that, sharing again goes through the normal flow. Cancelled posts can be shared again. *Finish this feed* needs two taps.
 5. **Questionnaire after the part** (Google Form, embedded) — after each of the 3 parts; the screen shows participant number and part number.
 6. **Part end** — "Part X finished — please tell the researcher" → *Researcher: continue* (→ next part intro, or after part 3 → final questionnaire).
 7. **Final questionnaire** (Google Form, embedded) — before the debrief, so the debrief cannot influence the answers.
@@ -92,6 +92,7 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 | prompt_skipped | | `source_viewed` — B/C: the source was already opened in this part, so the notice was skipped and the post shared at once |
 | vibrate | | `kind|pattern|return value|<Hz>Hz` or `skipped:disabled` / `skipped:unsupported` (B and C) |
 | share_complete | | `direct:<entry>` (A) \| `prompt:<entry>` \| `source_viewed:<entry>` (B/C) |
+| unshare | | `share` \| `repost` — the share was undone by tapping again |
 | cancel | | `prompt:<entry>` (B/C only); `\|replaced` = Share tapped on another post while the banner was open, `\|finished` = feed finished with the banner open |
 | block_end | block duration | shared post ids |
 | form_shown | | `consent` \| `part` \| `final` (`\|resume` after a reload) |
@@ -100,10 +101,12 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 | session_end | session duration | |
 
 ### Summary CSV (one row per post per block)
-`participant, block, condition, post_set, post_id, story, veracity, source_opens, source_opens_from_prompt, source_time_ms, shared, shared_via, share_attempts, repost_attempts, prompt_skipped, cancels, decision_time_ms, time_from_first_view_ms`
+`participant, block, condition, post_set, post_id, story, veracity, source_opens, source_opens_from_prompt, source_time_ms, shared, unshares, shared_via, share_attempts, repost_attempts, prompt_skipped, cancels, decision_time_ms, time_from_first_view_ms`
 
 - `story` — the news story; both versions of a story share it.
 - `source_opens_from_prompt` — source opened from the B/C notice.
+- `shared` — final state at the end of the part (1 = shared and not undone).
+- `unshares` — how many times a share was undone.
 - `shared_via` — `share` or `repost`: the button that started the share that went through.
 - `repost_attempts` — how many of the `share_attempts` started from the repost icon.
 - `prompt_skipped` — 1 if the notice was skipped because the source had already been viewed.
