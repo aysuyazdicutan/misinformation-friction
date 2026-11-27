@@ -84,6 +84,19 @@
     promptTitle: 'You haven’t checked the source.',
     shareAnyway: 'Share anyway',
 
+    // Google Forms (consent at the start, a questionnaire after each part, a final one at the end)
+    formConsentTitle: 'Consent form',
+    formConsentText: 'Please read and fill in the consent form below. When you have submitted it, tap the button at the bottom.',
+    formPartTitle: 'Questions about part {n}',
+    formPartText: 'Please answer a few questions about the part you just finished. When you have submitted the form, tap the button at the bottom.',
+    formFinalTitle: 'Final questions',
+    formFinalText: 'Almost done: please fill in this last questionnaire. When you have submitted it, tap the button at the bottom.',
+    formInfo: 'Participant number: {pid}',
+    formInfoPart: 'Participant number: {pid} · Part {n}',
+    formOpenTab: 'Form not loading? Open it in a new tab',
+    formContinue: 'I submitted the form — continue',
+    formContinueAgain: 'Tap again to continue',
+
     // Block end
     blockEndTitle: 'Part {n} finished',
     blockEndText: 'Please tell the researcher.',
@@ -102,7 +115,7 @@
     backToSetup: 'Back to setup',
 
     // Phase names (resume info)
-    phase: { intro: 'part {n} intro', feed: 'part {n} feed', blockEnd: 'end of part {n}', debrief: 'debrief', done: 'finished' }
+    phase: { consent: 'consent form', survey: 'questionnaire after part {n}', final: 'final questionnaire', intro: 'part {n} intro', feed: 'part {n} feed', blockEnd: 'end of part {n}', debrief: 'debrief', done: 'finished' }
   };
 
   function t(key, vars) {
@@ -122,6 +135,15 @@
   const LS_ACTIVE = 'mf_active';
   const LS_PREFIX = 'mf_session_';
   const VIB_SUPPORTED = 'vibrate' in navigator;
+
+  // Google Forms shown inside the app (iframe). consent: start of every session;
+  // part: after each of the 3 parts; final: after the last part, before the debrief.
+  const FORMS = {
+    consent: 'https://docs.google.com/forms/d/e/1FAIpQLSdwddI7po3QA6EiKwlw8XbRohdIjPbeZgOR2gbEBh-f-MI0zA/viewform?embedded=true',
+    part: 'https://docs.google.com/forms/d/e/1FAIpQLSf7iSKov2Yg1XbL5dqolIUJ4MRYatfX2PepTVIXTSYh0nLscA/viewform?embedded=true',
+    final: 'https://docs.google.com/forms/d/e/1FAIpQLSdaXVctOyj2dFz6outXCbV0TP2KZLD3dzDFKh7sY92LauCtwg/viewform?embedded=true'
+  };
+  const FORM_PHASES = { consent: 'consent', survey: 'part', final: 'final' };
 
   const $ = function (id) { return document.getElementById(id); };
 
@@ -278,7 +300,7 @@
   let session = null;
   /* session = { id, pid, plan, startEpoch, blockIdx, phase, finishedAt,
                  blocks: [{ order:[postId], shared:[postId], visible:[postId], startEpoch }], seq, events:[] }
-     phase: 'intro' | 'feed' | 'blockEnd' | 'debrief' | 'done' */
+     phase: 'consent' | 'intro' | 'feed' | 'survey' | 'blockEnd' | 'final' | 'debrief' | 'done' */
 
   function saveSession() {
     if (!session) return;
@@ -304,7 +326,7 @@
   }
 
   function curBlock() {
-    if (!session || session.phase === 'debrief' || session.phase === 'done') return null;
+    if (!session || ['consent', 'final', 'debrief', 'done'].indexOf(session.phase) >= 0) return null;
     return session.plan.blocks[session.blockIdx] || null;
   }
   function cond() { const b = curBlock(); return b ? b.condition : null; }
@@ -392,7 +414,7 @@
   // =====================================================================
   // Screens & overlays
   // =====================================================================
-  const SCREENS = ['setup', 'intro', 'feed', 'blockend', 'debrief', 'end'];
+  const SCREENS = ['setup', 'form', 'intro', 'feed', 'blockend', 'debrief', 'end'];
   function showScreen(name) {
     SCREENS.forEach(function (s) { $('screen-' + s).hidden = s !== name; });
     window.scrollTo(0, 0);
@@ -510,7 +532,7 @@
       id: 'P' + pid + '-' + now.toString(36),
       pid: pid, plan: plan, startEpoch: now,
       vib: { hzB: settings.hzB, hzC: settings.hzC, promptPulses: settings.promptPulses, sharePulses: settings.sharePulses },
-      blockIdx: 0, phase: 'intro', finishedAt: null, seq: 0, events: [],
+      blockIdx: 0, phase: 'consent', finishedAt: null, seq: 0, events: [],
       blocks: plan.blocks.map(function (b) {
         const ids = window.POST_SETS[b.set].map(function (p) { return p.id; });
         return { order: feedOrder(ids, pid * 1000 + b.block), shared: [], visible: [] };
@@ -527,11 +549,12 @@
     session = s;
     log('session_resume', { detail: 'phase=' + s.phase });
     requestWakeLock();
-    goPhase();
+    goPhase(true);
   }
 
-  function goPhase() {
+  function goPhase(resumed) {
     switch (session.phase) {
+      case 'consent': case 'survey': case 'final': renderForm(resumed); break;
       case 'intro': renderIntro(); break;
       case 'feed': renderFeed(); break;
       case 'blockEnd': renderBlockEnd(); break;
@@ -558,9 +581,45 @@
     const bs = blockState();
     log('block_end', { value_ms: bs.startEpoch ? Date.now() - bs.startEpoch : null, detail: 'shared=' + bs.shared.join(',') });
     if (observer) { observer.disconnect(); observer = null; }
-    session.phase = 'blockEnd';
+    session.phase = 'survey';
     saveSession();
-    renderBlockEnd();
+    renderForm(false);
+  }
+
+  // ---------- Google Forms screen (consent / after each part / final) ----------
+  let formArmed = false, formTimer = 0, formLoads = 0;
+  function resetFormButton() { formArmed = false; clearTimeout(formTimer); $('btnFormContinue').textContent = t('formContinue'); }
+
+  function renderForm(resumed) {
+    const kind = FORM_PHASES[session.phase];
+    const n = session.blockIdx + 1;
+    $('formTitle').textContent = kind === 'consent' ? t('formConsentTitle') : kind === 'part' ? t('formPartTitle', { n: n }) : t('formFinalTitle');
+    $('formText').textContent = kind === 'consent' ? t('formConsentText') : kind === 'part' ? t('formPartText') : t('formFinalText');
+    $('formInfo').textContent = kind === 'part' ? t('formInfoPart', { pid: session.pid, n: n }) : t('formInfo', { pid: session.pid });
+    $('formOpenTab').href = FORMS[kind];
+    formLoads = 0;
+    $('formFrame').src = FORMS[kind];
+    resetFormButton();
+    session.formStart = Date.now();
+    log('form_shown', { detail: kind + (resumed ? '|resume' : '') });
+    showScreen('form');
+  }
+
+  function onFormContinue() {
+    if (!formArmed) {
+      formArmed = true;
+      $('btnFormContinue').textContent = t('formContinueAgain');
+      formTimer = setTimeout(resetFormButton, 3000);
+      return;
+    }
+    resetFormButton();
+    const kind = FORM_PHASES[session.phase];
+    // iframe loads: 1 = form opened; more = the form moved to another page or was submitted
+    log('form_continue', { value_ms: session.formStart ? Date.now() - session.formStart : null, detail: kind + '|loads=' + formLoads });
+    $('formFrame').src = 'about:blank';
+    if (kind === 'consent') { session.phase = 'intro'; saveSession(); renderIntro(); }
+    else if (kind === 'part') { session.phase = 'blockEnd'; saveSession(); renderBlockEnd(); }
+    else { session.phase = 'debrief'; saveSession(); renderDebrief(true); }
   }
 
   function renderBlockEnd() {
@@ -575,9 +634,9 @@
       saveSession();
       renderIntro();
     } else {
-      session.phase = 'debrief';
+      session.phase = 'final';
       saveSession();
-      renderDebrief(true);
+      renderForm(false);
     }
   }
 
@@ -921,6 +980,8 @@
     $('btnBeginBlock').addEventListener('click', beginBlock);
     $('btnFinishFeed').addEventListener('click', onFinishTap);
     $('btnResearcherContinue').addEventListener('click', researcherContinue);
+    $('btnFormContinue').addEventListener('click', onFormContinue);
+    $('formFrame').addEventListener('load', function () { if ($('formFrame').getAttribute('src') !== 'about:blank') formLoads++; });
     $('btnDebriefDone').addEventListener('click', endSession);
     $('btnEndExportRaw').addEventListener('click', function () { exportSession('raw'); });
     $('btnEndExportSummary').addEventListener('click', function () { exportSession('summary'); });

@@ -50,11 +50,16 @@ Each **story** is a real news article (`url`) with two headlines: one accurate (
 
 ## Study flow
 1. **Researcher setup** — participant number → plan preview, vibration on/off + support status + B/C pulse rate and pulse counts + test buttons, Start, exports, Clear data. An unfinished session (e.g. after a reload) can be resumed.
-2. **Part intro** — neutral instruction (B and C have the same text).
-3. **Feed** — 10 posts (seeded shuffle; the two versions of a story are never next to each other) in a timeline layout. *View source* opens the real article **in a new tab** (Android back button returns to the app); the time away is logged. The **repost icon** and **Share** both open the same flow (A: shared at once, B/C: notice). Reply / like / views icons are decorative. Shared posts lock; cancelled posts can be shared again. *Finish this feed* needs two taps.
-4. **Part end** — "Part X finished — please tell the researcher" → *Researcher: continue*.
-5. **Debrief** — all misleading headlines, each with what the article actually says.
-6. **End** — export buttons.
+2. **Consent form** (Google Form, embedded) — every participant, right after Start. The screen shows the participant number. *I submitted the form — continue* needs two taps.
+3. **Part intro** — neutral instruction (B and C have the same text).
+4. **Feed** — 10 posts (seeded shuffle; the two versions of a story are never next to each other) in a timeline layout. *View source* opens the real article **in a new tab** (Android back button returns to the app); the time away is logged. The **repost icon** and **Share** both open the same flow (A: shared at once, B/C: notice). Reply / like / views icons are decorative. Shared posts lock; cancelled posts can be shared again. *Finish this feed* needs two taps.
+5. **Questionnaire after the part** (Google Form, embedded) — after each of the 3 parts; the screen shows participant number and part number.
+6. **Part end** — "Part X finished — please tell the researcher" → *Researcher: continue* (→ next part intro, or after part 3 → final questionnaire).
+7. **Final questionnaire** (Google Form, embedded) — before the debrief, so the debrief cannot influence the answers.
+8. **Debrief** — all misleading headlines, each with what the article actually says.
+9. **End** — export buttons.
+
+The form URLs are in `FORMS` at the top of app.js. The app cannot see what is typed into a Google Form, so the form answers live in Google Forms and are matched to the app's CSV by participant number (and part number). Each form screen has an *Open it in a new tab* link in case the embed does not load.
 
 ### Counterbalancing
 ```
@@ -89,6 +94,8 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 | share_complete | | `direct:<entry>` (A) \| `prompt:<entry>` \| `source_viewed:<entry>` (B/C) |
 | cancel | | `prompt:<entry>` (B/C only) |
 | block_end | block duration | shared post ids |
+| form_shown | | `consent` \| `part` \| `final` (`\|resume` after a reload) |
+| form_continue | time on the form screen | `<kind>\|loads=<n>` — n = times the form iframe loaded (1 = opened; more = moved to another page or submitted) |
 | debrief_shown | | |
 | session_end | session duration | |
 

@@ -72,6 +72,16 @@
     </section>
   </main>
 
+  <!-- Google Form (consent at the start, questionnaire after each part, final questionnaire) -->
+  <main id="screen-form" class="screen form-screen" hidden>
+    <h1 id="formTitle"></h1>
+    <p id="formText"></p>
+    <p id="formInfo" class="form-info"></p>
+    <iframe id="formFrame" class="form-frame" title="Questionnaire" loading="eager"></iframe>
+    <a id="formOpenTab" class="link-btn" target="_blank" rel="noopener noreferrer" data-s="formOpenTab"></a>
+    <button type="button" id="btnFormContinue" class="btn primary big" data-s="formContinue"></button>
+  </main>
+
   <!-- 2. Block intro -->
   <main id="screen-intro" class="screen center" hidden>
     <p class="eyebrow" id="introPart"></p>
