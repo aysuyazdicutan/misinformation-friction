@@ -119,36 +119,16 @@
     <button type="button" id="btnBackToSetup" class="btn subtle" data-s="backToSetup"></button>
   </main>
 
-  <!-- Overlay: B/C — source question (identical for B and C; only the vibration Hz differs) -->
-  <div id="ov-prompt" class="overlay sheet" hidden>
-    <div class="pause" role="dialog" aria-modal="true" aria-labelledby="promptQuestion" aria-describedby="promptTitle promptSub">
-      <p id="promptTitle" class="pause-title" data-s="promptTitle"></p>
-      <p id="promptSub" class="muted" data-s="promptSub"></p>
-
+  <!-- Overlay: B/C — top notice when the source has not been checked (identical for B and C; only the vibration Hz differs) -->
+  <div id="ov-prompt" class="overlay notice-wrap" hidden>
+    <div class="notice" role="alertdialog" aria-modal="true" aria-labelledby="promptTitle">
+      <p id="promptTitle" class="notice-title"><span class="notice-icon" aria-hidden="true">!</span><span data-s="promptTitle"></span></p>
       <article id="promptSummary" class="post mini"></article>
-
-      <h2 id="promptQuestion" class="question" data-s="promptQuestion"></h2>
-      <button type="button" id="btnInspect" class="btn big" data-s="inspectSource"></button>
-
-      <div class="row equal prompt-actions">
-        <button type="button" id="btnPromptCancel" class="btn big" data-s="cancel"></button>
-        <button type="button" id="btnPromptShare" class="btn big" data-s="share"></button>
+      <a id="btnPromptSource" class="link-btn" target="_blank" rel="noopener noreferrer" data-s="viewSource"></a>
+      <div class="row equal">
+        <button type="button" id="btnPromptCancel" class="btn" data-s="cancel"></button>
+        <button type="button" id="btnPromptShare" class="btn primary" data-s="shareAnyway"></button>
       </div>
-    </div>
-  </div>
-
-  <!-- Overlay: source trace -->
-  <div id="ov-source" class="overlay sheet top" hidden>
-    <div class="source" role="dialog" aria-modal="true" aria-labelledby="sourceTitle">
-      <h2 id="sourceTitle" data-s="sourceTitle"></h2>
-      <article id="sourcePost" class="post mini"></article>
-      <dl class="source-dl">
-        <dt data-s="srcPublisher"></dt><dd id="srcPublisher"></dd>
-        <dt data-s="srcPublished"></dt><dd id="srcPublished"></dd>
-        <dt data-s="srcEvidence"></dt><dd id="srcEvidence"></dd>
-        <dt data-s="srcNote"></dt><dd id="srcNote"></dd>
-      </dl>
-      <button type="button" id="btnSourceBack" class="btn big" data-s="back"></button>
     </div>
   </div>
 

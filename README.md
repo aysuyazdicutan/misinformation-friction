@@ -6,7 +6,7 @@ Plain HTML/CSS/JS (no framework, no build step). Runs in Android Chrome, served 
 index.html   page skeleton (all text comes from STRINGS in app.js)
 style.css    styles
 app.js       STRINGS, screens, A/B/C share flows, vibration, event log, CSV export
-posts.js     window.POST_SETS = {S1, S2, S3}  — PLACEHOLDER content for now
+posts.js     window.POST_SETS = {S1, S2, S3}  — real news stories, two headlines each
 ```
 
 The ESP32 share card is **not** part of the app in this version.
@@ -28,25 +28,32 @@ Open `http://localhost:8000/`. Vibration and wake lock only work on a real Andro
 | | After tapping Share | Vibration |
 |---|---|---|
 | A — standard | Shared immediately (no confirm, no pause) | none |
-| B — source question + 3.5 Hz | Question screen: "Did you check the source?" + Inspect source, Cancel / Share | pulsed at 3.5 Hz (default) |
-| C — source question + 5 Hz | Same question screen as B | pulsed at 5 Hz (default) |
+| B — source notice + 3.5 Hz | Notice drops in from the top: "You haven't checked the source." + post preview, *View source* link, Cancel / Share anyway | pulsed at 3.5 Hz (default) |
+| C — source notice + 5 Hz | Same notice as B | pulsed at 5 Hz (default) |
 
-**If the participant already opened the post's source in this part (from the feed or from the question screen), B and C skip the question and share at once, with no vibration.** B and C use exactly the same screen and text; the vibration pulse rate is the only difference. `haptic()` in app.js returns immediately in A, so A can never vibrate. If vibration is switched off or unsupported, B and C do not vibrate (the setup screen warns, and each skipped vibration is logged).
+**If the participant already opened this post's source in this part (from the feed or from the notice), B and C share at once: no notice, no vibration.** The check is per post: opening the accurate version's source does not count for the misleading version. B and C use exactly the same notice and text; the vibration pulse rate is the only difference. `haptic()` in app.js returns immediately in A, so A can never vibrate. If vibration is switched off or unsupported, B and C do not vibrate (the setup screen warns, and each skipped vibration is logged).
 
 ### Vibration pulse rate (Hz)
 A web page cannot change the motor's own frequency, but it can switch the motor on and off: "Hz" here means pulses per second, with a 50 % duty cycle — `on = off = round(1000 / (2 × Hz))` ms. 3.5 Hz → 143 ms on / 143 ms off; 5 Hz → 100 / 100.
 
 Set on the setup screen (saved on the phone, frozen into each session when it starts):
 - **B pulse rate** (default 3.5 Hz) and **C pulse rate** (default 5 Hz), 1–20 Hz in 0.5 steps.
-- **Pulses when the question opens** (default 1) and **pulses when shared** (default 2), 1–20, same for B and C. N pulses → pattern `[on, off, …, on]`.
-- Test buttons play the B/C question and share patterns with the current values.
+- **Pulses when the notice opens** (default 1) and **pulses when shared** (default 2), 1–20, same for B and C. N pulses → pattern `[on, off, …, on]`.
+- Test buttons play the B/C notice and share patterns with the current values.
+
+## Content (`posts.js`)
+Each **story** is a real news article (`url`) with two headlines: one accurate (`veracity: 'true'`) and one misleading. **Both versions appear in the same feed.** Currently 15 stories in 5 topics (Entertainment, Culture, General News, Science, Sports); each set has one story per topic, so **5 stories = 10 posts per part**. Three more stories will be added later (keep sets the same size).
+
+- Post fields: `id` (`S1-<story>-T` / `-F`), `story`, `author`, `handle`, `text`, `veracity`, `topic`, `url`, `publisher`, `debrief`.
+- Accounts are 6 fictional, neutral news accounts. Each posts both accurate and misleading headlines, and the two versions of a story come from different accounts.
+- The setup screen warns if sets differ in size, a story lacks one of its versions, or a post has no url.
 
 ## Study flow
 1. **Researcher setup** — participant number → plan preview, vibration on/off + support status + B/C pulse rate and pulse counts + test buttons, Start, exports, Clear data. An unfinished session (e.g. after a reload) can be resumed.
 2. **Part intro** — neutral instruction (B and C have the same text).
-3. **Feed** — 8 posts (seeded shuffle) in a timeline layout. *View source* is a link; the **repost icon** and **Share** both open the same flow (A: shared at once, B/C: question). Reply / like / views icons are decorative. Shared posts lock; cancelled posts can be shared again. *Finish this feed* needs two taps.
+3. **Feed** — 10 posts (seeded shuffle; the two versions of a story are never next to each other) in a timeline layout. *View source* opens the real article **in a new tab** (Android back button returns to the app); the time away is logged. The **repost icon** and **Share** both open the same flow (A: shared at once, B/C: notice). Reply / like / views icons are decorative. Shared posts lock; cancelled posts can be shared again. *Finish this feed* needs two taps.
 4. **Part end** — "Part X finished — please tell the researcher" → *Researcher: continue*.
-5. **Debrief** — all misleading posts with corrections.
+5. **Debrief** — all misleading headlines, each with what the article actually says.
 6. **End** — export buttons.
 
 ### Counterbalancing
@@ -73,11 +80,11 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 | session_resume | | phase at reload |
 | block_start | | shuffled post order |
 | post_visible | | first time ≥50 % visible |
-| source_open | | `feed` \| `prompt` |
-| source_close | time open | `feed` \| `prompt` |
+| source_open | | `feed\|<url>` or `prompt\|<url>` (prompt = from the B/C notice) |
+| source_close | time away from the app | `feed\|returned` / `prompt\|returned`; `\|no_return` if another link was tapped before the page was left |
 | share_tap | | `share` \| `repost` — which feed button was tapped |
-| prompt_shown | | (B and C) |
-| prompt_skipped | | `source_viewed` — B/C: the source was already opened in this part, so the question was skipped and the post shared at once |
+| prompt_shown | | B/C notice shown |
+| prompt_skipped | | `source_viewed` — B/C: the source was already opened in this part, so the notice was skipped and the post shared at once |
 | vibrate | | `kind|pattern|return value|<Hz>Hz` or `skipped:disabled` / `skipped:unsupported` (B and C) |
 | share_complete | | `direct:<entry>` (A) \| `prompt:<entry>` \| `source_viewed:<entry>` (B/C) |
 | cancel | | `prompt:<entry>` (B/C only) |
@@ -86,15 +93,16 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 | session_end | session duration | |
 
 ### Summary CSV (one row per post per block)
-`participant, block, condition, post_set, post_id, veracity, source_opens, source_opens_from_prompt, source_time_ms, shared, shared_via, share_attempts, repost_attempts, prompt_skipped, cancels, decision_time_ms, time_from_first_view_ms`
+`participant, block, condition, post_set, post_id, story, veracity, source_opens, source_opens_from_prompt, source_time_ms, shared, shared_via, share_attempts, repost_attempts, prompt_skipped, cancels, decision_time_ms, time_from_first_view_ms`
 
-- `source_opens_from_prompt` — source opened from the question screen (B/C).
+- `story` — the news story; both versions of a story share it.
+- `source_opens_from_prompt` — source opened from the B/C notice.
 - `shared_via` — `share` or `repost`: the button that started the share that went through.
 - `repost_attempts` — how many of the `share_attempts` started from the repost icon.
-- `prompt_skipped` — 1 if the question was skipped because the source had already been viewed.
+- `prompt_skipped` — 1 if the notice was skipped because the source had already been viewed.
 - `decision_time_ms` — last `share_tap` → its `share_complete` or `cancel`.
 - `time_from_first_view_ms` — first `post_visible` → first `share_tap` (empty if never tapped).
 
 ## Before the study
-- Replace `posts.js` with real content and set `POSTS_ARE_PLACEHOLDER = false` (the setup screen warns until then).
-- Test on the study phone: no vibration in A and B, 1 + 2 pulses in C, CSV download.
+- Add the 3 remaining stories to `posts.js` (one per set, keeping set sizes equal).
+- Test on the study phone: no vibration in A, 3.5 Hz in B and 5 Hz in C, the notice, opening sources and coming back with the back button, CSV download.

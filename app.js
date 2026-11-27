@@ -4,10 +4,12 @@
  *
  * Conditions:
  *   A — standard:          Share -> shared at once. No vibration.
- *   B — question + 3.5 Hz: Share -> prompt "Did you check the source?" -> Share / Cancel, pulsed vibration at hzB.
- *   C — question + 5 Hz:   same prompt as B, pulsed vibration at hzC.
+ *   B — notice + 3.5 Hz:   Share -> top notice "You haven't checked the source." -> Cancel / Share anyway,
+ *                          pulsed vibration at hzB.
+ *   C — notice + 5 Hz:     same notice as B, pulsed vibration at hzC.
  * B and C are identical except for the vibration pulse rate (Hz, set on the setup screen).
- * If the source was already viewed in the part, B/C skip the prompt and do not vibrate.
+ * If the post's source was already opened in the part, B/C share at once: no notice, no vibration.
+ * "View source" opens the real news article in a new tab; time away is logged on return.
  */
 (function () {
   'use strict';
@@ -27,7 +29,7 @@
     planEmpty: 'Enter a participant number to see the plan.',
     planHeader: 'Order {order} · rotation {rot}',
     planBlock: 'Part', planCond: 'Condition', planSet: 'Post set',
-    condName: { A: 'A — standard (no vibration)', B: 'B — source question + {hz} Hz', C: 'C — source question + {hz} Hz' },
+    condName: { A: 'A — standard (no vibration)', B: 'B — source notice + {hz} Hz', C: 'C — source notice + {hz} Hz' },
     vibTitle: 'Vibration (conditions B and C)',
     vibToggle: 'Vibration on',
     vibSupported: 'This browser supports vibration.',
@@ -35,12 +37,12 @@
     vibOffWarning: 'Vibration is off: B and C will not vibrate.',
     hzBLabel: 'B pulse rate (Hz)',
     hzCLabel: 'C pulse rate (Hz)',
-    promptPulsesLabel: 'Pulses when the question opens',
+    promptPulsesLabel: 'Pulses when the notice opens',
     sharePulsesLabel: 'Pulses when shared',
     vibPreview: 'B: {bOn} ms on / {bOn} ms off · C: {cOn} ms on / {cOn} ms off',
-    testBPrompt: 'Test B question',
+    testBPrompt: 'Test B notice',
     testBShare: 'Test B share',
-    testCPrompt: 'Test C question',
+    testCPrompt: 'Test C notice',
     testCShare: 'Test C share',
     vibTestResult: 'navigator.vibrate returned: {r}',
     startBtn: 'Start session',
@@ -59,9 +61,9 @@
     introPart: 'Part {n} of 3',
     introTitle: 'Before you start',
     introA: 'In this part, sharing works the usual way: tap Share and the post is shared.',
-    introB: 'In this part, when you tap Share you will see a short question before the post is shared.',
-    introC: 'In this part, when you tap Share you will see a short question before the post is shared.',
-    introCommon: 'Scroll through the feed and share any posts you would normally share. You can view a post’s source at any time. When you are done, tap “Finish this feed”.',
+    introB: 'In this part, when you tap Share you may see a short notice before the post is shared.',
+    introC: 'In this part, when you tap Share you may see a short notice before the post is shared.',
+    introCommon: 'Scroll through the feed and share any posts you would normally share. You can open a post’s source at any time; it opens in a new tab, and the back button brings you here. When you are done, tap “Finish this feed”.',
     introBegin: 'Begin',
 
     // Feed
@@ -78,19 +80,9 @@
 
     cancel: 'Cancel',
 
-    // Source question prompt (B and C — identical)
-    promptTitle: 'Every share asks for a short pause.',
-    promptSub: 'This does not mean the post is false.',
-    promptQuestion: 'Did you check the source?',
-    inspectSource: 'Inspect source',
-
-    // Source page
-    sourceTitle: 'Source trace',
-    srcPublisher: 'Publisher',
-    srcPublished: 'Published',
-    srcEvidence: 'Evidence',
-    srcNote: 'Note',
-    back: 'Back',
+    // Source notice (B and C — identical)
+    promptTitle: 'You haven’t checked the source.',
+    shareAnyway: 'Share anyway',
 
     // Block end
     blockEndTitle: 'Part {n} finished',
@@ -99,8 +91,8 @@
 
     // Debrief
     debriefTitle: 'About the posts you saw',
-    debriefIntro: 'Some posts in this study were deliberately misleading. Here they are, with corrections:',
-    debriefOutro: 'All posts, accounts and sources in this study were created for research. Thank you for taking part!',
+    debriefIntro: 'Every news story in this study appeared twice: once with an accurate headline and once with a misleading one. Here are the misleading headlines, with what the articles actually say:',
+    debriefOutro: 'The articles are real, but the accounts are fictional and the misleading headlines were written for this research. Thank you for taking part!',
     debriefDone: 'Finish',
     debriefClaim: 'Post: “{text}”',
 
@@ -171,17 +163,43 @@
     window.POST_SETS[s].forEach(function (p) { POST_BY_ID[p.id] = p; });
   });
 
+  // Feed order: seeded shuffle, re-drawn (deterministically) until no two posts of the
+  // same story sit next to each other.
+  function feedOrder(ids, seed) {
+    function ok(a) {
+      for (let i = 1; i < a.length; i++) if (POST_BY_ID[a[i]].story === POST_BY_ID[a[i - 1]].story) return false;
+      return true;
+    }
+    let a = ids;
+    for (let k = 0; k < 500; k++) {
+      a = seededShuffle(ids, seed + k * 7919);
+      if (ok(a)) return a;
+    }
+    return a;
+  }
+
+  // Every set: same size, each story with exactly one 'true' and one 'misleading' post.
   function validateSets() {
     const problems = [];
     const seen = {};
+    const sizes = [];
     SETS.forEach(function (s) {
       const arr = (window.POST_SETS || {})[s];
       if (!Array.isArray(arr)) { problems.push(s + ' missing'); return; }
-      const nTrue = arr.filter(function (p) { return p.veracity === 'true'; }).length;
-      const nMis = arr.filter(function (p) { return p.veracity === 'misleading'; }).length;
-      if (arr.length !== 8 || nTrue !== 4 || nMis !== 4) problems.push(s + ': ' + arr.length + ' posts (' + nTrue + ' true / ' + nMis + ' misleading), expected 8 (4/4)');
-      arr.forEach(function (p) { if (seen[p.id]) problems.push('duplicate id ' + p.id); seen[p.id] = true; });
+      sizes.push(arr.length);
+      const stories = {};
+      arr.forEach(function (p) {
+        if (seen[p.id]) problems.push('duplicate id ' + p.id);
+        seen[p.id] = true;
+        if (!p.url) problems.push(p.id + ' has no url');
+        (stories[p.story] = stories[p.story] || []).push(p.veracity);
+      });
+      Object.keys(stories).forEach(function (k) {
+        const v = stories[k].slice().sort().join('+');
+        if (v !== 'misleading+true') problems.push(s + ' story "' + k + '" needs one true and one misleading post (has: ' + v + ')');
+      });
     });
+    if (sizes.length && sizes.some(function (n) { return n !== sizes[0]; })) problems.push('sets have different sizes: ' + sizes.join(' / '));
     return problems;
   }
 
@@ -380,7 +398,7 @@
     window.scrollTo(0, 0);
   }
   function updateBodyLock() {
-    const open = !$('ov-prompt').hidden || !$('ov-source').hidden;
+    const open = !$('ov-prompt').hidden;
     document.body.classList.toggle('overlay-open', open);
   }
   function showOverlay(id, on) { $(id).hidden = !on; updateBodyLock(); }
@@ -495,7 +513,7 @@
       blockIdx: 0, phase: 'intro', finishedAt: null, seq: 0, events: [],
       blocks: plan.blocks.map(function (b) {
         const ids = window.POST_SETS[b.set].map(function (p) { return p.id; });
-        return { order: seededShuffle(ids, pid * 1000 + b.block), shared: [], visible: [] };
+        return { order: feedOrder(ids, pid * 1000 + b.block), shared: [], visible: [] };
       })
     };
     log('session_start', { detail: 'order=' + plan.order + ';rot=' + plan.rot + ';plan=' + plan.blocks.map(function (b) { return b.condition + ':' + b.set; }).join(',') + ';placeholder=' + (window.POSTS_ARE_PLACEHOLDER ? 1 : 0) + ';hzB=' + session.vib.hzB + ';hzC=' + session.vib.hzC + ';prompt_pulses=' + session.vib.promptPulses + ';share_pulses=' + session.vib.sharePulses + ';ua=' + navigator.userAgent });
@@ -606,9 +624,9 @@
       body.appendChild(postHeader(p));
       body.appendChild(el('p', { class: 'tweet-text', text: p.text }));
 
-      // "View source" looks like a link, behaves like a button (opens the in-app source page).
-      const srcLink = el('button', { type: 'button', class: 'link-btn', text: t('viewSource') });
-      srcLink.addEventListener('click', function () { openSource(id, 'feed'); });
+      // "View source" is a real link to the news article, opened in a new tab.
+      const srcLink = el('a', { class: 'link-btn', href: p.url, target: '_blank', rel: 'noopener noreferrer', text: t('viewSource') });
+      srcLink.addEventListener('click', function () { sourceOpened(id, 'feed'); });
       body.appendChild(srcLink);
 
       // Action row: reply / like / views are decorative only (no counts, to avoid social-proof
@@ -735,43 +753,35 @@
   }
 
 
-  // ---- B/C: source question prompt (identical UI; C adds vibration) ----
+  // ---- B/C: "You haven't checked the source" notice (identical UI; only vibration Hz differs) ----
   function openPrompt(id) {
     renderMiniPost($('promptSummary'), POST_BY_ID[id]);
+    $('btnPromptSource').href = POST_BY_ID[id].url;
     showOverlay('ov-prompt', true);
-    $('ov-prompt').scrollTop = 0;
     log('prompt_shown', { post_id: id });
     haptic('prompt', id);
-    $('btnInspect').focus({ preventScroll: true });
+    $('btnPromptCancel').focus({ preventScroll: true });
   }
   function closePrompt() { showOverlay('ov-prompt', false); }
 
   // =====================================================================
-  // Source trace page
+  // External source (real article in a new tab)
+  // source_open is logged on the tap; source_close when the participant comes back to the
+  // app (page visible again), with the time away in value_ms.
   // =====================================================================
-  let sourceState = null; // { postId, context, t0, returnFocus }
+  let sourceState = null; // { postId, context, t0, left }
 
-  function openSource(id, context) {
-    const p = POST_BY_ID[id];
-    sourceState = { postId: id, context: context, t0: performance.now(), returnFocus: document.activeElement };
-    renderMiniPost($('sourcePost'), p);
-    $('srcPublisher').textContent = p.source.publisher;
-    $('srcPublished').textContent = p.source.published;
-    $('srcEvidence').textContent = p.source.evidence;
-    $('srcNote').textContent = p.source.note;
-    showOverlay('ov-source', true);
-    $('ov-source').scrollTop = 0;
-    log('source_open', { post_id: id, detail: context });
-    $('btnSourceBack').focus({ preventScroll: true });
+  function sourceOpened(id, context) {
+    if (sourceState) closeSource('no_return'); // previous link never took the page away
+    sourceState = { postId: id, context: context, t0: performance.now(), left: false };
+    log('source_open', { post_id: id, detail: context + '|' + POST_BY_ID[id].url });
   }
 
-  function closeSource() {
+  function closeSource(how) {
     if (!sourceState) return;
     const s = sourceState;
     sourceState = null;
-    log('source_close', { post_id: s.postId, value_ms: performance.now() - s.t0, detail: s.context });
-    showOverlay('ov-source', false);
-    if (s.returnFocus && s.returnFocus.focus) s.returnFocus.focus({ preventScroll: true });
+    log('source_close', { post_id: s.postId, value_ms: performance.now() - s.t0, detail: s.context + (how ? '|' + how : '') });
   }
 
   // =====================================================================
@@ -785,7 +795,12 @@
   function releaseWakeLock() { if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; } }
 
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible' && session && session.phase !== 'done') requestWakeLock();
+    if (document.visibilityState === 'hidden') {
+      if (sourceState) sourceState.left = true;
+      return;
+    }
+    if (sourceState && sourceState.left) closeSource('returned');
+    if (session && session.phase !== 'done') requestWakeLock();
   });
 
   window.addEventListener('beforeunload', function (e) {
@@ -812,7 +827,7 @@
     return toCSV(RAW_COLS, rows);
   }
 
-  const SUM_COLS = ['participant', 'block', 'condition', 'post_set', 'post_id', 'veracity', 'source_opens', 'source_opens_from_prompt',
+  const SUM_COLS = ['participant', 'block', 'condition', 'post_set', 'post_id', 'story', 'veracity', 'source_opens', 'source_opens_from_prompt',
     'source_time_ms', 'shared', 'shared_via', 'share_attempts', 'repost_attempts', 'prompt_skipped', 'cancels', 'decision_time_ms', 'time_from_first_view_ms'];
 
   function summaryCSV(s) {
@@ -822,7 +837,7 @@
       window.POST_SETS[b.set].forEach(function (p) {
         const pe = evs.filter(function (e) { return e.post_id === p.id; });
         const count = function (name, detail) {
-          return pe.filter(function (e) { return e.event === name && (detail == null || e.detail === detail); }).length;
+          return pe.filter(function (e) { return e.event === name && (detail == null || e.detail === detail || e.detail.indexOf(detail + '|') === 0); }).length;
         };
         let sourceTime = 0, lastTap = null, lastEntry = '', sharedVia = '', decision = '', firstView = null, firstTap = null;
         pe.forEach(function (e) {
@@ -833,7 +848,7 @@
           if ((e.event === 'share_complete' || e.event === 'cancel') && lastTap != null) { decision = e.t_ms - lastTap; lastTap = null; }
         });
         rows.push({
-          participant: s.pid, block: b.block, condition: b.condition, post_set: b.set, post_id: p.id, veracity: p.veracity,
+          participant: s.pid, block: b.block, condition: b.condition, post_set: b.set, post_id: p.id, story: p.story, veracity: p.veracity,
           source_opens: count('source_open'), source_opens_from_prompt: count('source_open', 'prompt'),
           source_time_ms: sourceTime,
           shared: count('share_complete') > 0 ? 1 : 0,
@@ -912,19 +927,15 @@
     $('btnBackToSetup').addEventListener('click', function () { session = null; renderSetup(); });
 
 
-    // Source question prompt (B/C)
-    $('btnInspect').addEventListener('click', function () { openSource(activePostId, 'prompt'); });
+    // Source notice (B/C)
+    $('btnPromptSource').addEventListener('click', function () { sourceOpened(activePostId, 'prompt'); });
     $('btnPromptShare').addEventListener('click', function () { shareComplete('prompt'); });
     $('btnPromptCancel').addEventListener('click', function () { shareCancel('prompt'); });
-
-    // Source
-    $('btnSourceBack').addEventListener('click', closeSource);
 
     // Escape closes the top-most overlay (keyboard users)
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
-      if (sourceState) closeSource();
-      else if (!$('ov-prompt').hidden) shareCancel('prompt');
+      if (!$('ov-prompt').hidden) shareCancel('prompt');
     });
 
     renderSetup();
