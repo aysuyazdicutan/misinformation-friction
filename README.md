@@ -28,7 +28,7 @@ Open `http://localhost:8000/`. Vibration and wake lock only work on a real Andro
 | | After tapping Share | Vibration |
 |---|---|---|
 | A — standard | Shared immediately (no confirm, no pause) | none |
-| B — source notice + 3.5 Hz | Notice drops in from the top: "You haven't checked the source." + post preview, *View source* link, Cancel / Share anyway | pulsed at 3.5 Hz (default) |
+| B — source notice + 3.5 Hz | Banner drops in at the top (no separate page, the feed stays visible and scrollable): "You haven't checked the source." + *View source* link, Cancel / Share anyway. Sharing waits for the choice | pulsed at 3.5 Hz (default) |
 | C — source notice + 5 Hz | Same notice as B | pulsed at 5 Hz (default) |
 
 **If the participant already opened this post's source in this part (from the feed or from the notice), B and C share at once: no notice, no vibration.** The check is per post: opening the accurate version's source does not count for the misleading version. B and C use exactly the same notice and text; the vibration pulse rate is the only difference. `haptic()` in app.js returns immediately in A, so A can never vibrate. If vibration is switched off or unsupported, B and C do not vibrate (the setup screen warns, and each skipped vibration is logged).
@@ -92,7 +92,7 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 | prompt_skipped | | `source_viewed` — B/C: the source was already opened in this part, so the notice was skipped and the post shared at once |
 | vibrate | | `kind|pattern|return value|<Hz>Hz` or `skipped:disabled` / `skipped:unsupported` (B and C) |
 | share_complete | | `direct:<entry>` (A) \| `prompt:<entry>` \| `source_viewed:<entry>` (B/C) |
-| cancel | | `prompt:<entry>` (B/C only) |
+| cancel | | `prompt:<entry>` (B/C only); `\|replaced` = Share tapped on another post while the banner was open, `\|finished` = feed finished with the banner open |
 | block_end | block duration | shared post ids |
 | form_shown | | `consent` \| `part` \| `final` (`\|resume` after a reload) |
 | form_continue | time on the form screen | `<kind>\|loads=<n>` — n = times the form iframe loaded (1 = opened; more = moved to another page or submitted) |

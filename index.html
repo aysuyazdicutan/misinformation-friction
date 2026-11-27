@@ -131,9 +131,8 @@
 
   <!-- Overlay: B/C — top notice when the source has not been checked (identical for B and C; only the vibration Hz differs) -->
   <div id="ov-prompt" class="overlay notice-wrap" hidden>
-    <div class="notice" role="alertdialog" aria-modal="true" aria-labelledby="promptTitle">
+    <div class="notice" role="alertdialog" aria-modal="false" aria-labelledby="promptTitle">
       <p id="promptTitle" class="notice-title"><span class="notice-icon" aria-hidden="true">!</span><span data-s="promptTitle"></span></p>
-      <article id="promptSummary" class="post mini"></article>
       <a id="btnPromptSource" class="link-btn" target="_blank" rel="noopener noreferrer" data-s="viewSource"></a>
       <div class="row equal">
         <button type="button" id="btnPromptCancel" class="btn" data-s="cancel"></button>

@@ -137,15 +137,14 @@ input[type=number] { width: 100%; font-size: 1.3rem; padding: 10px 12px; border:
 .vib-grid input { width: 100%; font-size: 1.1rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
 
 /* ---------- B/C notice (drops in from the top) ---------- */
-.overlay.notice-wrap { background: rgba(10, 14, 24, .35); align-items: flex-start; justify-content: center; padding: 10px var(--gutter) 0; }
+.overlay.notice-wrap { bottom: auto; background: none; pointer-events: none; align-items: flex-start; justify-content: center; padding: calc(8px + env(safe-area-inset-top)) var(--gutter) 0; }
 .notice {
   width: 100%; max-width: 560px; background: var(--surface); border-radius: var(--radius);
   border-left: 5px solid #d97706; box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
-  padding: 14px 14px 10px; animation: notice-in .22s ease-out;
+  pointer-events: auto; padding: 12px 14px 8px; animation: notice-in .22s ease-out;
 }
 .notice-title { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; margin: 0 0 4px; }
 .notice-icon { width: 24px; height: 24px; border-radius: 50%; background: #d97706; color: #fff; display: grid; place-items: center; font-size: .9rem; flex: none; }
-.notice .post.mini { margin: 8px 0 4px; }
 .notice .link-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @keyframes notice-in { from { transform: translateY(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .notice { animation: none; } }

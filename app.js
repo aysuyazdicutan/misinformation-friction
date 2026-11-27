@@ -420,8 +420,8 @@
     window.scrollTo(0, 0);
   }
   function updateBodyLock() {
-    const open = !$('ov-prompt').hidden;
-    document.body.classList.toggle('overlay-open', open);
+    // The B/C notice is a banner: the feed behind it stays visible and scrollable.
+    document.body.classList.remove('overlay-open');
   }
   function showOverlay(id, on) { $(id).hidden = !on; updateBodyLock(); }
 
@@ -578,6 +578,7 @@
   }
 
   function finishBlock() {
+    if (promptOpen()) shareCancel('prompt', 'finished');
     const bs = blockState();
     log('block_end', { value_ms: bs.startEpoch ? Date.now() - bs.startEpoch : null, detail: 'shared=' + bs.shared.join(',') });
     if (observer) { observer.disconnect(); observer = null; }
@@ -765,6 +766,10 @@
   // Both the Share button and the Repost icon lead to the same flow (A: shared at once, B/C: prompt).
   function shareTap(id, entry) {
     if (blockState().shared.indexOf(id) >= 0) return;
+    if (promptOpen()) {
+      if (activePostId === id) return;          // notice for this post is already showing
+      shareCancel('prompt', 'replaced');        // Share on another post while the notice was open
+    }
     activePostId = id;
     activeEntry = entry;
     log('share_tap', { post_id: id, detail: entry });
@@ -801,10 +806,10 @@
     toast(t('sharedToast'));
   }
 
-  function shareCancel(via) {
+  function shareCancel(via, why) {
     const id = activePostId;
     if (!id) return;
-    log('cancel', { post_id: id, detail: via + ':' + activeEntry });
+    log('cancel', { post_id: id, detail: via + ':' + activeEntry + (why ? '|' + why : '') });
     closePrompt();
     activePostId = null;
     const btn = document.querySelector('[data-' + (activeEntry === 'repost' ? 'repost' : 'share') + '="' + id + '"]');
@@ -814,7 +819,6 @@
 
   // ---- B/C: "You haven't checked the source" notice (identical UI; only vibration Hz differs) ----
   function openPrompt(id) {
-    renderMiniPost($('promptSummary'), POST_BY_ID[id]);
     $('btnPromptSource').href = POST_BY_ID[id].url;
     showOverlay('ov-prompt', true);
     log('prompt_shown', { post_id: id });
@@ -822,6 +826,7 @@
     $('btnPromptCancel').focus({ preventScroll: true });
   }
   function closePrompt() { showOverlay('ov-prompt', false); }
+  function promptOpen() { return !$('ov-prompt').hidden; }
 
   // =====================================================================
   // External source (real article in a new tab)
