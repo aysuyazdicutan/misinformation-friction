@@ -42,7 +42,7 @@ Set on the setup screen (saved on the phone, frozen into each session when it st
 - Test buttons play the B/C notice and share patterns with the current values.
 
 ## Content (`posts.js`)
-Each **story** is a real news article (`url`) with two headlines: one accurate (`veracity: 'true'`) and one misleading. **Both versions appear in the same feed.** Currently 15 stories in 5 topics (Entertainment, Culture, General News, Science, Sports); each set has one story per topic, so **5 stories = 10 posts per part**. Three more stories will be added later (keep sets the same size).
+Each **story** is a real news article (`url`) with two headlines: one accurate (`veracity: 'true'`) and one misleading. **Both versions appear in the same feed.** 18 stories in 6 topics (Entertainment, Culture, General News, Science, Sports, Travel & Tourism); each set has one story per topic, so **6 stories = 12 posts per part** (36 posts in total). Keep sets the same size when changing content.
 
 - Post fields: `id` (`S1-<story>-T` / `-F`), `story`, `author`, `handle`, `text`, `veracity`, `topic`, `url`, `publisher`, `debrief`.
 - Accounts are 6 fictional, neutral news accounts. Each posts both accurate and misleading headlines, and the two versions of a story come from different accounts.
@@ -52,7 +52,7 @@ Each **story** is a real news article (`url`) with two headlines: one accurate (
 1. **Researcher setup** — participant number → plan preview, vibration on/off + support status + B/C pulse rate and pulse counts + test buttons, Start, exports, Clear data. An unfinished session (e.g. after a reload) can be resumed.
 2. **Consent form** (Google Form, embedded) — every participant, right after Start. The screen shows the participant number. *I submitted the form — continue* needs two taps.
 3. **Part intro** — neutral instruction (B and C have the same text).
-4. **Feed** — 10 posts (seeded shuffle; the two versions of a story are never next to each other) in a timeline layout. *View source* opens the real article **in a new tab** (Android back button returns to the app); the time away is logged. The **repost icon** and **Share** both open the same flow (A: shared at once, B/C: notice). Reply / like / views icons are decorative. Shared posts lock; cancelled posts can be shared again. *Finish this feed* needs two taps.
+4. **Feed** — 12 posts (seeded shuffle; the two versions of a story are never next to each other) in a timeline layout. *View source* opens the real article **in a new tab** (Android back button returns to the app); the time away is logged. The **repost icon** and **Share** both open the same flow (A: shared at once, B/C: notice). Reply / like / views icons are decorative. Shared posts lock; cancelled posts can be shared again. *Finish this feed* needs two taps.
 5. **Questionnaire after the part** (Google Form, embedded) — after each of the 3 parts; the screen shows participant number and part number.
 6. **Part end** — "Part X finished — please tell the researcher" → *Researcher: continue* (→ next part intro, or after part 3 → final questionnaire).
 7. **Final questionnaire** (Google Form, embedded) — before the debrief, so the debrief cannot influence the answers.
@@ -111,5 +111,4 @@ Stored in `localStorage` per session (`mf_session_<id>`), saved on every event, 
 - `time_from_first_view_ms` — first `post_visible` → first `share_tap` (empty if never tapped).
 
 ## Before the study
-- Add the 3 remaining stories to `posts.js` (one per set, keeping set sizes equal).
 - Test on the study phone: no vibration in A, 3.5 Hz in B and 5 Hz in C, the notice, opening sources and coming back with the back button, CSV download.

@@ -3,7 +3,7 @@
  *
  * Each STORY is a real news article (url) with two headlines that appear as two posts
  * in the SAME feed: one accurate ('true') and one distorted ('misleading').
- * Currently 15 stories (5 per set, one per topic); 3 more stories will be added later.
+ * 18 stories (6 per set, one per topic) = 12 posts per set.
  *
  * Accounts are fictional and neutral: every account posts both true and misleading
  * headlines, and the two versions of one story come from different accounts, so the
@@ -93,7 +93,21 @@ window.POSTS_ARE_PLACEHOLDER = false;
     ['S3', 'fenerbahce-roma', 'Sports', 'beIN Sports',
       'https://www.beinsports.com/en-mena/football/uefa-champions-league/articles-video/fenerbahce-draw-with-roma-on-return-to-champions-league-2026-09-10',
       'Fenerbahce returns to the Champions League after 18 years upon draw with Roma',
-      'Fenerbahce to compete in the Champions League for the first time after win against Roma']
+      'Fenerbahce to compete in the Champions League for the first time after win against Roma'],
+
+    // ---- Travel & Tourism (one per set) ----
+    ['S1', 'istanbul-chengdu', 'Travel & Tourism', 'Travel PR News',
+      'https://travelprnews.com/article/news-recap-11-november-2026-chengdu-gains-an-istanbul-link-as-hotels-put-cinema-and-dining-on-sale/',
+      'Turkish Airlines launches a new direct flight route between Istanbul and Chengdu, China.',
+      'Turkish Airlines resumes direct flights between Istanbul and Chengdu after years of suspension.'],
+    ['S2', 'southernmost-hotel', 'Travel & Tourism', 'Euronews',
+      'https://www.euronews.com/2026/11/12/new-gateway-to-antarctica-worlds-southernmost-hotel-opens-in-chile',
+      'The world’s southernmost hotel opens in Chile, offering accommodation for tourists travelling to Antarctica.',
+      'The world’s southernmost hotel opens in Antarctica, offering accommodation for tourists visiting the continent.'],
+    ['S3', 'northern-lights', 'Travel & Tourism', 'PR Newswire',
+      'https://www.prnewswire.com/news-releases/the-aurora-allure-why-its-still-on-everyones-bucket-list-and-where-its-taking-travellers-302933110.html',
+      'Bookings for Northern Lights tours increase by 225% compared to last year.',
+      'Bookings for Northern Lights tours reach a record low as tourists lose interest in Arctic destinations.']
   ];
 
   const sets = { S1: [], S2: [], S3: [] };
